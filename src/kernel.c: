@@ -1,0 +1,98 @@
+#include <stdbool.h>
+
+#define VIDEO_MEMORY ((unsigned short *)0xB8000)
+#define SCREEN_WIDTH 80
+#define SCREEN_HEIGHT 25
+
+static unsigned short cursor_x = 0;
+static unsigned short cursor_y = 0;
+
+static void put_char(char c)
+{
+    unsigned short *video = VIDEO_MEMORY;
+
+    if (c == '\n') {
+        cursor_x = 0;
+        cursor_y++;
+        return;
+    }
+
+    if (c == '\r') {
+        cursor_x = 0;
+        return;
+    }
+
+    if (cursor_y >= SCREEN_HEIGHT) {
+        for (unsigned short y = 1; y < SCREEN_HEIGHT; y++) {
+            for (unsigned short x = 0; x < SCREEN_WIDTH; x++) {
+                video[(y - 1) * SCREEN_WIDTH + x] = video[y * SCREEN_WIDTH + x];
+            }
+        }
+        for (unsigned short x = 0; x < SCREEN_WIDTH; x++) {
+            video[(SCREEN_HEIGHT - 1) * SCREEN_WIDTH + x] = 0x0720;
+        }
+        cursor_y = SCREEN_HEIGHT - 1;
+    }
+
+    if (cursor_x >= SCREEN_WIDTH) {
+        cursor_x = 0;
+        cursor_y++;
+    }
+
+    if (cursor_y >= SCREEN_HEIGHT) {
+        cursor_y = SCREEN_HEIGHT - 1;
+    }
+
+    video[cursor_y * SCREEN_WIDTH + cursor_x] = (unsigned short)(0x0700 | (unsigned char)c);
+    cursor_x++;
+}
+
+static void print_string(const char *str)
+{
+    while (*str != '\0') {
+        put_char(*str);
+        str++;
+    }
+}
+
+static void clear_screen(void)
+{
+    unsigned short *video = VIDEO_MEMORY;
+    for (unsigned short i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
+        video[i] = 0x0720;
+    }
+    cursor_x = 0;
+    cursor_y = 0;
+}
+
+void kernel_main(void)
+{
+    clear_screen();
+
+    print_string("\n");
+    print_string("===========================================================\n");
+    print_string("                    OS-1895 BOOT SEQUENCE                  \n");
+    print_string("===========================================================\n\n");
+    print_string("Loading system files...\n");
+    print_string("Initializing DOS shell...\n");
+    print_string("Checking memory... 640 KB OK\n");
+    print_string("Verifying drives... C: Ready\n");
+    print_string("\n");
+    print_string("MS-DOS Version 3.30\n");
+    print_string("Copyright (C) 1985 Mock Systems\n\n");
+    print_string("C:\\> ver\n");
+    print_string("Microsoft DOS Version 3.30\n");
+    print_string("C:\\> dir\n");
+    print_string(" Volume in drive C is OS-1895\n");
+    print_string(" Volume Serial Number is 1895-1985\n");
+    print_string(" Directory of C:\\\n");
+    print_string(" COMMAND  COM   DOS    KERNEL  README\n");
+    print_string("\n");
+    print_string("C:\\> help\n");
+    print_string("Available commands: DIR, VER, TYPE, CLS, DATE, TIME\n");
+    print_string("C:\\> \n");
+
+    while (1) {
+        __asm__ volatile ("hlt");
+    }
+}
